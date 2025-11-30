@@ -1,16 +1,19 @@
-# ayakurume  
-WIP developer only iOS 15 jailbreak for checkm8 devices (Apple A8-A11)  
+# ayakurume
+WIP developer only iOS 15/16 jailbreak for checkm8 devices (Apple A8-A11)
 full rootfs r/w (fakefs), tweak injection etc...  
 
 ## Attention
 It's very likely that there are mistakes in the code, so it's recommended to debug in serial (because the device-side verbose boot is not able to follow SpringBoard's startup).
 
-## Supported Environment 
-- iPhone 6s (iPhone8,1/N71AP) 15.7.1  
+## Supported Environment
+- iPhone 6s (iPhone8,1/N71AP) 15.7.1
+- iPhone X (iPhone10,6/D221AP) 16.7.11 [WIP]
+
 It is necessary that your device's storage is 32 GB or more. When duplicating rootfs, 5GB of storage will be used up.
 
-# Dependencies 
-- iPhone8,1 ipsw of iOS 15.7.1
+# Dependencies
+- iPhone8,1 IPSW of iOS 15.7.1 (for iPhone 6s)
+- iPhone10,6 IPSW of iOS 16.7.11 (for iPhone X)
 - [gaster](https://github.com/0x7ff/gaster)  
 - [libirecovery](https://github.com/libimobiledevice/libirecovery)  
 - [SSHRD_Script](https://github.com/verygenericname/SSHRD_Script)  

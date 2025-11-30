@@ -1,0 +1,12 @@
+# iPhone X (iPhone10,6/D221AP) iOS 16.7.11 (20H330) Kernelcache Bytepatch
+# TODO: Generate bytepatch from IPSW analysis
+#
+# Format: offset original_byte patched_byte
+# Example:
+# 0x706cb 0x73 0x6a
+#
+# Required patches for iOS 16.7.11:
+# - AMFI bypass
+# - Sandbox bypass
+# - Codesign bypass
+# - Root filesystem mount r/w
