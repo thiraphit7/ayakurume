@@ -19,6 +19,40 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Detect architecture
+detect_arch() {
+    local arch=$(uname -m)
+    local os=$(uname -s)
+
+    case "$arch" in
+        x86_64|amd64)
+            echo "x86_64"
+            ;;
+        aarch64)
+            if [[ "$os" == "Darwin" ]]; then
+                echo "arm64"
+            else
+                echo "aarch64"
+            fi
+            ;;
+        arm64)
+            echo "arm64"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
+# Set architecture and binary path
+ARCH=$(detect_arch)
+BIN_PATH="${BIN_PATH:-$SCRIPT_DIR/bin/$ARCH}"
+
+# Add bin directory to PATH if it exists
+if [[ -d "$BIN_PATH" ]]; then
+    export PATH="$BIN_PATH:$PATH"
+fi
+
 # Configuration
 SSHRD_PATH="${SSHRD_PATH:-../SSHRD_Script}"
 SSH_PORT=2222
@@ -95,12 +129,33 @@ confirm_action() {
 ###########################################
 
 check_command() {
-    if command -v "$1" &> /dev/null; then
-        print_status "$1 found"
+    local cmd=$1
+    local bin_path="$BIN_PATH/$cmd"
+
+    # First check in local bin directory
+    if [[ -x "$bin_path" ]]; then
+        print_status "$cmd found in bin/$ARCH/"
+        return 0
+    # Then check in system PATH
+    elif command -v "$cmd" &> /dev/null; then
+        print_status "$cmd found (system)"
         return 0
     else
-        print_error "$1 not found"
+        print_error "$cmd not found"
+        print_info "  Install to: bin/$ARCH/$cmd"
         return 1
+    fi
+}
+
+# Get tool path (local bin or system)
+get_tool() {
+    local cmd=$1
+    local bin_path="$BIN_PATH/$cmd"
+
+    if [[ -x "$bin_path" ]]; then
+        echo "$bin_path"
+    else
+        echo "$cmd"
     fi
 }
 
@@ -111,8 +166,14 @@ check_dependencies() {
     echo -e "${CYAN}═══════════════════════════════════════${NC}"
     echo ""
 
+    echo -e "${WHITE}System Info:${NC}"
+    echo -e "  Architecture: ${GREEN}$ARCH${NC}"
+    echo -e "  Binary Path:  ${GREEN}$BIN_PATH${NC}"
+    echo ""
+
     local all_ok=true
 
+    echo -e "${CYAN}Required Tools:${NC}"
     # Check required tools
     check_command "gaster" || all_ok=false
     check_command "irecovery" || all_ok=false
@@ -121,11 +182,16 @@ check_dependencies() {
     check_command "scp" || all_ok=false
     check_command "bspatch" || all_ok=false
 
-    # Check img4 tool
-    if [[ -f "$SCRIPT_DIR/macos/img4" ]]; then
-        print_status "img4 tool found in macos/"
+    echo ""
+    echo -e "${CYAN}img4 Tool:${NC}"
+    # Check img4 tool - check local bin first, then macos/
+    if [[ -x "$BIN_PATH/img4" ]]; then
+        print_status "img4 found in bin/$ARCH/"
+    elif [[ -f "$SCRIPT_DIR/macos/img4" ]]; then
+        print_status "img4 found in macos/"
     else
-        print_error "img4 tool not found in macos/"
+        print_error "img4 not found"
+        print_info "  Install to: bin/$ARCH/img4"
         all_ok=false
     fi
 
@@ -546,7 +612,20 @@ prepare_first_run() {
 
     # Step 4: Create img4
     print_step "Creating signed iBSS.img4..."
-    if ./macos/img4 -i "$ibss_patched" -o "$ibss_img4" -M apticket.der -A -T ibss; then
+
+    # Find img4 tool
+    local img4_tool=""
+    if [[ -x "$BIN_PATH/img4" ]]; then
+        img4_tool="$BIN_PATH/img4"
+    elif [[ -x "$SCRIPT_DIR/macos/img4" ]]; then
+        img4_tool="$SCRIPT_DIR/macos/img4"
+    else
+        print_error "img4 tool not found"
+        press_enter
+        return 1
+    fi
+
+    if "$img4_tool" -i "$ibss_patched" -o "$ibss_img4" -M apticket.der -A -T ibss; then
         print_status "iBSS.img4 created"
     else
         print_error "Failed to create iBSS.img4"
@@ -826,6 +905,67 @@ download_dependencies() {
 }
 
 ###########################################
+#        Download Binary Tools            #
+###########################################
+
+download_binary_tools() {
+    print_banner
+    echo -e "${CYAN}═══════════════════════════════════════${NC}"
+    echo -e "${WHITE}       Download Binary Tools           ${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════${NC}"
+    echo ""
+
+    echo -e "${WHITE}Current Architecture: ${GREEN}$ARCH${NC}"
+    echo ""
+
+    local download_script="$SCRIPT_DIR/bin/download-tools.sh"
+
+    if [[ ! -f "$download_script" ]]; then
+        print_error "Download script not found: $download_script"
+        press_enter
+        return 1
+    fi
+
+    echo -e "${YELLOW}Options:${NC}"
+    echo "  1) Download for current architecture ($ARCH)"
+    echo "  2) Download for x86_64 (Linux Intel/AMD)"
+    echo "  3) Download for aarch64 (Linux ARM64)"
+    echo "  4) Download for arm64 (macOS Apple Silicon)"
+    echo "  5) Download for all architectures"
+    echo "  0) Back"
+    echo ""
+    echo -n "Select option: "
+    read -r choice
+
+    case $choice in
+        1)
+            bash "$download_script" --auto
+            ;;
+        2)
+            bash "$download_script" --x86_64
+            ;;
+        3)
+            bash "$download_script" --aarch64
+            ;;
+        4)
+            bash "$download_script" --arm64
+            ;;
+        5)
+            bash "$download_script" --all
+            ;;
+        0)
+            return 0
+            ;;
+        *)
+            print_error "Invalid option"
+            ;;
+    esac
+
+    press_enter
+    return 0
+}
+
+###########################################
 #              Main Menu                  #
 ###########################################
 
@@ -833,6 +973,7 @@ show_main_menu() {
     print_banner
 
     echo -e "${WHITE}  Current Settings:${NC}"
+    echo -e "  Arch:   ${CYAN}$ARCH${NC}"
     if [[ -n "$DEVICE_TYPE" ]]; then
         echo -e "  Device: ${GREEN}$DEVICE_TYPE${NC} (${DEVICE_MODEL})"
         echo -e "  iOS:    ${GREEN}$IOS_VERSION${NC}"
@@ -864,6 +1005,7 @@ show_main_menu() {
     echo -e "  ${PURPLE}── Tools ──${NC}"
     echo -e "  ${WHITE}8)${NC} Check Dependencies"
     echo -e "  ${WHITE}9)${NC} Download Required Files"
+    echo -e "  ${WHITE}t)${NC} Download Binary Tools"
     echo -e "  ${WHITE}u)${NC} Set Device UUID"
     echo ""
     echo -e "  ${WHITE}q)${NC} Quit"
@@ -907,6 +1049,9 @@ main() {
                 ;;
             9)
                 download_dependencies
+                ;;
+            t|T)
+                download_binary_tools
                 ;;
             u|U)
                 get_uuid_from_device
