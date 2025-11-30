@@ -1,0 +1,42 @@
+# iPhone X (iPhone10,6) iOS 16.7.12 (20H364) Kernelcache Bytepatch
+# KernelCacheBuilder_release-2429.140.2
+#
+# IMPORTANT: These are TEMPLATE patches. Actual offsets must be determined
+# through reverse engineering of the decrypted kernelcache.
+#
+# How to find patch offsets:
+# 1. Decompress kernelcache with img4 tool
+# 2. Load into Ghidra/IDA Pro
+# 3. Search for security functions by string references
+# 4. Patch conditional branches to bypass checks
+#
+# Format: offset original_byte patched_byte
+# Apply with: ./img4 -i kernelcache.dec -o kernelcachd -P kc.bpatch -M apticket.der
+
+# === AMFI Patches ===
+# Bypass code signature enforcement
+# Find: amfi_get_out_of_my_way check
+# Patch: Change conditional branch to unconditional
+
+# === Sandbox Patches ===
+# Allow unrestricted file access
+# Find: sandbox_check function
+# Patch: Return 0 (allow)
+
+# === Root FS Mount Patches ===
+# Allow mounting root filesystem as read-write
+# Find: mount_common restrictions
+# Patch: Remove ro enforcement
+
+# === Process Enforcement ===
+# Disable proc_enforce
+# Find: proc_enforce check
+# Patch: NOP out check
+
+# Example entry format (replace with actual offsets):
+# 0x123456 0xb5 0x1f   # Original CBZ -> MOV W0, #0 (part 1)
+# 0x123457 0x00 0x20   # (part 2)
+# 0x123458 0x18 0x03   # (part 3)
+# 0x123459 0x36 0xd5   # (part 4 - NOP completion)
+
+# TODO: Add actual patches after reverse engineering

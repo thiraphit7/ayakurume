@@ -1,2 +1,12 @@
 
 .DS_Store
+
+# IPSW work directory
+ipsw_work/
+*.ipsw
+*.dmg
+
+# Large firmware files (keep IM4P for reference)
+*.dec
+*.img4
+kernelcachd
